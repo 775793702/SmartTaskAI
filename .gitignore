@@ -1,11 +1,23 @@
-.env 
-__pycache__/ 
-*.pyc 
-*.db 
-instance/ 
-.DS_Store 
-Thumbs.db 
-venv/ 
-.vscode/ 
-.idea/ 
-nltk_data/
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+env/
+venv/
+
+# 环境变量
+.env
+*.env
+
+# 数据库
+*.db
+*.sqlite3
+instance/
+
+# 系统文件
+.DS_Store
+Thumbs.db
+desktop.ininltk_data/ 
+nltk_data/ 

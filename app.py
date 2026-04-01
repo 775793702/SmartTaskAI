@@ -16,7 +16,7 @@ from dashscope import Generation
 from textblob import TextBlob
 
 # ==================== 初始化配置 ====================
-app = Flask(__name__)
+app = Flask(__name__,instance_relative_config=False)
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///tasks.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db = SQLAlchemy(app)
