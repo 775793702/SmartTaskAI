@@ -12,8 +12,7 @@ from flask import Flask, request, jsonify, render_template
 from flask_sqlalchemy import SQLAlchemy
 import dashscope
 from dashscope import Generation
-from sklearn.feature_extraction.text import CountVectorizer
-from sklearn.naive_bayes import MultinomialNB
+
 from textblob import TextBlob
 
 # ==================== 初始化配置 ====================
@@ -76,202 +75,58 @@ sample_categories = ['工作', '学习', '生活', '工作', '学习', '生活',
                      '工作', '生活', '学习', '生活', '工作', '生活',
                      '生活', '学习', '工作', '生活', '学习', '工作']
 
-vectorizer = CountVectorizer()
-X_train = vectorizer.fit_transform(sample_descriptions)
-classifier = MultinomialNB()
-classifier.fit(X_train, sample_categories)
+
 
 def get_fallback_analysis(description):
-    """
-    智能备用分析方案 - 当大模型API不可用时使用
-    基于关键词规则和简单逻辑推理
-    """
-    print(f"[备用方案] 开始智能分析: {description}")
-    
-    # 预处理：转为小写，方便匹配
+    """纯Python备用分析方案（完全移除scikit-learn依赖）"""
+    print(f"[备用方案] 纯Python分析: {description[:30]}...")
+
     desc_lower = description.lower()
-    words = desc_lower.split()
-    word_count = len(words)
-    
-    # ============ 1. 智能分类 ============
-    # 定义关键词映射
-    work_keywords = ["工作", "项目", "会议", "汇报", "ppt", "报告", "客户", "经理", "老板", 
-                     "演示", "商务", "谈判", "合同", "邮件", "deadline", "截止", "提交", 
-                     "方案", "设计", "开发", "编程", "代码", "bug", "测试", "部署"]
-    
-    study_keywords = ["学习", "复习", "考试", "作业", "论文", "课程", "阅读", "预习", 
-                      "练习", "训练", "实验", "研究", "学术", "知识", "技能", "掌握", 
-                      "理解", "记忆", "背诵", "预习", "复习", "刷题", "模拟"]
-    
-    life_keywords = ["购物", "买菜", "做饭", "打扫", "清洁", "洗衣", "整理", "休息", 
-                     "睡觉", "电影", "音乐", "游戏", "运动", "健身", "跑步", "瑜伽", 
-                     "旅游", "旅行", "约会", "聚会", "聚餐", "家庭", "家人", "朋友", 
-                     "娱乐", "放松", "休闲", "看病", "医院", "医生", "健康"]
-    
-    # 计算关键词匹配分数
-    work_score = sum(1 for keyword in work_keywords if keyword in desc_lower)
-    study_score = sum(1 for keyword in study_keywords if keyword in desc_lower)
-    life_score = sum(1 for keyword in life_keywords if keyword in desc_lower)
-    
-    # 根据分数和关键词确定分类
-    if "机器学习" in description or "人工智能" in description or "ai" in desc_lower:
-        category = "学习"  # AI相关优先归为学习
-    elif "ppt" in desc_lower or "演示" in description or "汇报" in description:
+
+    # 1. 简单分类
+    if any(word in desc_lower for word in ["工作", "项目", "会议", "汇报", "ppt", "报告", "客户"]):
         category = "工作"
-    elif work_score >= study_score and work_score >= life_score:
-        category = "工作"
-    elif study_score >= work_score and study_score >= life_score:
+    elif any(word in desc_lower for word in ["学习", "复习", "考试", "作业", "论文", "课程", "阅读"]):
         category = "学习"
-    elif life_score >= work_score and life_score >= study_score:
+    elif any(word in desc_lower for word in ["购物", "买菜", "做饭", "打扫", "休息", "电影", "运动"]):
         category = "生活"
     else:
-        # 如果分数都很低，使用基于描述的启发式判断
-        if any(word in ["我", "我们", "自己", "个人"] for word in words[:3]):
-            category = "生活" if len(words) < 8 else "学习"
-        else:
-            category = "其他"
-    
-    # ============ 2. 智能耗时预估 ============
-    # 基于多个因素：字数、关键词复杂度、任务类型
-    complexity_indicators = 0
-    
-    # 检测复杂任务关键词
-    complex_indicators = ["项目", "报告", "论文", "系统", "应用", "程序", "开发", 
-                          "设计", "分析", "研究", "机器学习", "深度学习", "人工智能"]
-    for indicator in complex_indicators:
-        if indicator in description:
-            complexity_indicators += 1
-    
-    # 检测紧急/截止时间
-    urgent_indicators = ["明天", "今天", "紧急", "立刻", "马上", "尽快", "截止", "deadline"]
-    is_urgent = any(indicator in description for indicator in urgent_indicators)
-    
-    # 估算时间
-    if complexity_indicators >= 2:
-        estimated_time = "半天-1天"
-    elif complexity_indicators == 1:
-        estimated_time = "2-4小时"
-    elif word_count > 15:
-        estimated_time = "1-2小时"
-    elif word_count > 8:
-        estimated_time = "1小时内"
-    elif word_count > 4:
-        estimated_time = "30分钟内"
-    else:
-        estimated_time = "15分钟内"
-    
-    # 如果是紧急任务，适当缩短预估时间
-    if is_urgent and "天" in estimated_time:
-        estimated_time = "半天"
-    elif is_urgent and "小时" in estimated_time:
-        estimated_time = estimated_time.split("-")[0]  # 取较短时间
-    
-    # ============ 3. 智能生成子任务 ============
-    # 基于任务类型和描述生成相关子任务
-    base_templates = {
-        "工作": ["收集相关材料", "制定执行计划", "完成核心部分", "检查与完善"],
-        "学习": ["阅读相关资料", "整理笔记重点", "完成练习/实践", "复习总结"],
-        "生活": ["准备所需物品", "规划时间路线", "执行主要活动", "整理收尾"],
-        "其他": ["明确目标需求", "分步骤执行", "检查完成情况", "记录总结"]
-    }
-    
-    # 从描述中提取名词作为具体化元素
-    try:
-        blob = TextBlob(description)
-        nouns = [str(noun) for noun in blob.noun_phrases if len(str(noun)) > 1]
-    except:
-        nouns = []
-    
-    # 选择基础模板
-    template = base_templates.get(category, base_templates["其他"])
-    
-    # 如果有提取到名词，尝试具体化子任务
-    if nouns and len(nouns) >= 2:
-        # 使用前两个名词来具体化
-        noun1, noun2 = nouns[0], nouns[1] if len(nouns) > 1 else nouns[0]
-        
-        if category == "工作":
-            sub_tasks = [
-                f"收集关于{noun1}的资料",
-                f"制定{noun1}相关的计划",
-                f"完成{noun1}的核心部分"
-            ]
-        elif category == "学习":
-            sub_tasks = [
-                f"学习{noun1}的基础知识",
-                f"练习{noun1}的相关应用",
-                f"总结{noun1}的重点内容"
-            ]
-        elif category == "生活":
-            sub_tasks = [
-                f"准备{noun1}相关物品",
-                f"安排{noun1}的时间",
-                f"完成{noun1}的活动"
-            ]
-        else:
-            sub_tasks = template[:3]
-    else:
-        # 使用通用模板
-        sub_tasks = template[:3]
-    
-    # 确保子任务数量在2-3个
-    sub_tasks = sub_tasks[:3]
-    if len(sub_tasks) < 2:
-        sub_tasks.extend(["补充执行步骤", "最终检查完善"])
-    
-    # ============ 4. 评估任务难度 ============
-    if complexity_indicators >= 2 or word_count > 20:
-        difficulty = "困难"
-    elif complexity_indicators == 1 or word_count > 10:
-        difficulty = "中等"
-    else:
+        category = "其他"
+
+    # 2. 简单耗时预估
+    word_count = len(description.split())
+    if word_count <= 5:
+        estimated_time = "15-30分钟"
         difficulty = "简单"
-    
-    # ============ 5. 评估精力消耗 ============
-    if category == "工作" and complexity_indicators >= 1:
-        energy_level = "高"
-    elif category == "学习" and "复习" in description or "考试" in description:
-        energy_level = "高"
-    elif category == "生活" and ("运动" in description or "健身" in description):
-        energy_level = "高"
-    elif word_count > 12:
-        energy_level = "中"
-    else:
         energy_level = "低"
-    
-    # ============ 6. 判断是否需要专注 ============
-    focus_keywords = ["专注", "集中", "认真", "仔细", "深入", "分析", "思考", 
-                      "计算", "编程", "写作", "设计", "创造"]
-    mental_tasks = ["学习", "工作", "研究", "分析", "编程", "写作", "设计"]
-    
-    if any(keyword in description for keyword in focus_keywords):
-        focus_required = "是"
-    elif category in ["工作", "学习"] and word_count > 8:
-        focus_required = "是"
-    elif "放松" in description or "休息" in description or "娱乐" in description:
-        focus_required = "否"
+    elif word_count <= 10:
+        estimated_time = "1-2小时"
+        difficulty = "中等"
+        energy_level = "中"
+    elif "机器学习" in description or "人工智能" in description or "ai" in desc_lower:
+        estimated_time = "半天-1天"
+        difficulty = "困难"
+        energy_level = "高"
+    elif "报告" in description or "项目" in description or "论文" in description:
+        estimated_time = "半天"
+        difficulty = "困难"
+        energy_level = "高"
     else:
-        focus_required = "是" if difficulty in ["中等", "困难"] else "否"
-    
-    # ============ 7. 评估优先级 ============
-    urgent_words = ["紧急", "立刻", "马上", "尽快", "立即", "今天", "明天", "尽快完成"]
-    important_words = ["重要", "关键", "必须", "必要", "优先", "主要", "首要"]
-    
-    if any(word in description for word in urgent_words):
-        priority = "紧急"
-    elif any(word in description for word in important_words):
-        priority = "高"
-    elif category == "工作" or "截止" in description:
-        priority = "高"
-    elif category == "学习" and ("考试" in description or "作业" in description):
-        priority = "高"
-    elif category == "生活" and ("健康" in description or "医疗" in description):
-        priority = "高"
-    else:
-        priority = "中"
-    
-    # 构建分析结果
-    result = {
+        estimated_time = "2-3小时"
+        difficulty = "中等"
+        energy_level = "中"
+
+    # 3. 简单子任务生成
+    sub_tasks = ["准备所需材料", "执行核心步骤", "检查完成情况"]
+
+    # 4. 其他评估
+    focus_keywords = ["报告", "论文", "代码", "调试", "学习", "考试", "分析"]
+    focus_required = "是" if any(keyword in description for keyword in focus_keywords) else "否"
+
+    priority_keywords = ["紧急", "马上", "立即", "尽快", "重要", "必须"]
+    priority = "高" if any(keyword in description for keyword in priority_keywords) else "中"
+
+    return {
         "category": category,
         "estimated_time": estimated_time,
         "sub_tasks": sub_tasks,
@@ -280,9 +135,6 @@ def get_fallback_analysis(description):
         "focus_required": focus_required,
         "priority": priority
     }
-    
-    print(f"[备用方案] 分析完成: {category}类, {estimated_time}, 难度:{difficulty}")
-    return result
 
 def ai_analyze_task(description):
     """使用通义千问大模型进行智能任务分析"""
