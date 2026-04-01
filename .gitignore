@@ -1,0 +1,11 @@
+.env 
+__pycache__/ 
+*.pyc 
+*.db 
+instance/ 
+.DS_Store 
+Thumbs.db 
+venv/ 
+.vscode/ 
+.idea/ 
+nltk_data/

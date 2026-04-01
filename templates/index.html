@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SmartTask AI - 智能任务助手</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        .task-card { transition: all 0.3s ease; }
+        .task-card:hover { transform: translateY(-2px); box-shadow: 0 10px 25px rgba(0,0,0,0.1); }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-blue-50 to-cyan-50 min-h-screen p-4 md:p-8">
+    <div class="max-w-6xl mx-auto">
+        <!-- 页头 -->
+        <header class="text-center mb-10">
+            <h1 class="text-4xl md:text-5xl font-bold text-gray-800 mb-2">
+                <i class="fas fa-robot text-blue-500"></i> SmartTask AI
+            </h1>
+            <p class="text-gray-600 text-lg">智能分析您的任务，自动分类、预估时间并提供分解建议</p>
+        </header>
+
+        <div class="flex flex-col lg:flex-row gap-8">
+            <!-- 左侧：添加任务 -->
+            <div class="lg:w-1/3">
+                <div class="bg-white rounded-2xl shadow-xl p-6 sticky top-6">
+                    <h2 class="text-2xl font-bold text-gray-800 mb-4 flex items-center">
+                        <i class="fas fa-plus-circle text-blue-500 mr-2"></i> 添加新任务
+                    </h2>
+                    <div class="mb-6">
+                        <label class="block text-gray-700 mb-2">请描述您的任务：</label>
+                        <textarea id="taskInput" rows="4" placeholder="例如：'完成机器学习项目报告，并准备下周三的组会演示'..." 
+                        class="w-full p-4 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"></textarea>
+                        <p class="text-sm text-gray-500 mt-2">AI将自动分析您的任务内容。</p>
+                    </div>
+                    <button onclick="addTask()" 
+                        class="w-full bg-gradient-to-r from-blue-500 to-cyan-500 text-white font-semibold py-4 rounded-xl shadow-lg hover:shadow-xl transition duration-300">
+                        <i class="fas fa-magic mr-2"></i> AI 智能分析与添加
+                    </button>
+
+                    <!-- AI 分析结果预览 -->
+                    <div id="aiPreview" class="mt-6 p-4 bg-gradient-to-r from-blue-50 to-cyan-50 rounded-xl border border-blue-200 hidden">
+                        <h3 class="font-bold text-blue-800 mb-2"><i class="fas fa-brain mr-2"></i>AI 分析预览</h3>
+                        <div class="grid grid-cols-2 gap-3 text-sm">
+                            <div class="bg-white p-3 rounded-lg">
+                                <div class="text-gray-500">推荐类别</div>
+                                <div id="previewCategory" class="font-bold text-blue-600">-</div>
+                            </div>
+                            <div class="bg-white p-3 rounded-lg">
+                                <div class="text-gray-500">预估耗时</div>
+                                <div id="previewTime" class="font-bold text-green-600">-</div>
+                            </div>
+                        </div>
+                        <div class="mt-3">
+                            <div class="text-gray-500 mb-1">建议子步骤</div>
+                            <ul id="previewSubTasks" class="list-disc pl-5 text-gray-700 space-y-1"></ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 右侧：任务列表 -->
+            <div class="lg:w-2/3">
+                <div class="flex justify-between items-center mb-6">
+                    <h2 class="text-2xl font-bold text-gray-800 flex items-center">
+                        <i class="fas fa-tasks text-blue-500 mr-2"></i> 我的任务列表
+                    </h2>
+                    <div class="text-gray-600">
+                        <span id="taskCount">0</span> 个任务
+                    </div>
+                </div>
+
+                <!-- 任务列表容器 -->
+                <div id="tasksContainer" class="space-y-4">
+                    <!-- 任务卡片将由JavaScript动态生成 -->
+                    <div class="text-center py-10 text-gray-400" id="emptyState">
+                        <i class="fas fa-clipboard-list text-5xl mb-4"></i>
+                        <p class="text-xl">暂无任务</p>
+                        <p class="mt-2">在左侧添加您的第一个任务，体验AI智能分析！</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 页面加载时获取所有任务
+        document.addEventListener('DOMContentLoaded', fetchTasks);
+
+        // 监听输入框，实时预览AI分析
+        document.getElementById('taskInput').addEventListener('input', function(e) {
+            const text = e.target.value.trim();
+            if (text.length > 5) {
+                simulateAIPreview(text);
+            } else {
+                document.getElementById('aiPreview').classList.add('hidden');
+            }
+        });
+
+        // 模拟AI实时预览（实际开发中可改为调用后端专用预览接口）
+        function simulateAIPreview(text) {
+            const categories = ['工作', '学习', '生活', '其他'];
+            const times = ['15-30分钟', '30-60分钟', '1-2小时', '半天', '1天以上'];
+            
+            const randomCat = categories[Math.min(Math.floor(text.length / 10), 3)];
+            const randomTime = times[Math.min(Math.floor(text.length / 15), 4)];
+            
+            document.getElementById('previewCategory').textContent = randomCat;
+            document.getElementById('previewTime').textContent = randomTime;
+            
+            const subTasks = [
+                `分析“${text.substring(0, 10)}...”相关需求`,
+                '收集必要材料',
+                '制定执行计划'
+            ];
+            const subTasksHtml = subTasks.map(t => `<li>${t}</li>`).join('');
+            document.getElementById('previewSubTasks').innerHTML = subTasksHtml;
+            document.getElementById('aiPreview').classList.remove('hidden');
+        }
+
+        // 添加新任务
+        async function addTask() {
+            const input = document.getElementById('taskInput');
+            const description = input.value.trim();
+            if (!description) {
+                alert('请输入任务描述');
+                return;
+            }
+
+            const response = await fetch('/api/tasks', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ description })
+            });
+
+            if (response.ok) {
+                const result = await response.json();
+                alert(`任务已添加！\nAI分析结果：${result.ai_analysis.category} 类，预计耗时 ${result.ai_analysis.estimated_time}`);
+                input.value = '';
+                document.getElementById('aiPreview').classList.add('hidden');
+                fetchTasks(); // 刷新列表
+            } else {
+                alert('添加失败，请重试');
+            }
+        }
+
+        // 获取并渲染所有任务
+        async function fetchTasks() {
+            const response = await fetch('/api/tasks');
+            const tasks = await response.json();
+            renderTasks(tasks);
+        }
+
+        // 渲染任务列表
+        function renderTasks(tasks) {
+            const container = document.getElementById('tasksContainer');
+            const emptyState = document.getElementById('emptyState');
+            document.getElementById('taskCount').textContent = tasks.length;
+
+            if (tasks.length === 0) {
+                emptyState.classList.remove('hidden');
+                return;
+            }
+            emptyState.classList.add('hidden');
+
+            const categoryColors = {
+                '工作': 'bg-blue-100 text-blue-800 border-blue-200',
+                '学习': 'bg-green-100 text-green-800 border-green-200',
+                '生活': 'bg-amber-100 text-amber-800 border-amber-200',
+                '其他': 'bg-purple-100 text-purple-800 border-purple-200'
+            };
+
+            const tasksHtml = tasks.map(task => `
+                <div class="task-card bg-white rounded-xl shadow-lg border-l-4 ${task.is_completed ? 'border-l-green-500 opacity-80' : 'border-l-blue-500'} p-5">
+                    <div class="flex justify-between items-start">
+                        <div class="flex-1">
+                            <div class="flex items-center mb-2">
+                                <input type="checkbox" ${task.is_completed ? 'checked' : ''} 
+                                    onchange="toggleTask(${task.id})" 
+                                    class="h-5 w-5 text-blue-600 rounded focus:ring-blue-500">
+                                <h3 class="text-xl font-semibold ml-3 ${task.is_completed ? 'line-through text-gray-500' : 'text-gray-800'}">${task.description}</h3>
+                            </div>
+                            
+                            <div class="flex flex-wrap gap-2 mb-4">
+                                <span class="px-3 py-1 rounded-full text-sm font-medium border ${categoryColors[task.category] || categoryColors['其他']}">
+                                    <i class="fas fa-tag mr-1"></i>${task.category}
+                                </span>
+                                <span class="px-3 py-1 rounded-full text-sm font-medium bg-cyan-100 text-cyan-800 border border-cyan-200">
+                                    <i class="far fa-clock mr-1"></i>${task.estimated_time}
+                                </span>
+                                <span class="px-3 py-1 rounded-full text-sm font-medium ${task.is_completed ? 'bg-green-100 text-green-800 border border-green-200' : 'bg-orange-100 text-orange-800 border border-orange-200'}">
+                                    <i class="fas fa-circle mr-1"></i>${task.is_completed ? '已完成' : '进行中'}
+                                </span>
+                                <span class="px-3 py-1 rounded-full text-sm font-medium bg-purple-100 text-purple-800 border border-purple-200">
+                                    <i class="fas fa-chart-line mr-1"></i>难度：${task.difficulty || '中等'}
+                                </span>
+                                <span class="px-3 py-1 rounded-full text-sm font-medium bg-pink-100 text-pink-800 border border-pink-200">
+                                    <i class="fas fa-battery-half mr-1"></i>精力：${task.energy_level || '中'}
+                                </span>
+                                <span class="px-3 py-1 rounded-full text-sm font-medium bg-purple-100 text-purple-800 border border-purple-200">
+                                    <i class="fas fa-signal mr-1"></i>${task.difficulty || '中等'}
+                                </span>
+                                <span class="px-3 py-1 rounded-full text-sm font-medium bg-pink-100 text-pink-800 border border-pink-200">
+                                    <i class="fas fa-bolt mr-1"></i>${task.energy_level || '中'}
+                                </span>
+                                <span class="px-3 py-1 rounded-full text-sm font-medium ${task.focus_required === '是' ? 'bg-red-100 text-red-800 border border-red-200' : 'bg-green-100 text-green-800 border border-green-200'}">
+                                    <i class="fas fa-eye mr-1"></i>${task.focus_required === '是' ? '需专注' : '可分心'}
+                                </span>
+                                <span class="px-3 py-1 rounded-full text-sm font-medium ${task.priority === '高' || task.priority === '紧急' ? 'bg-red-100 text-red-800 border border-red-200' : task.priority === '中' ? 'bg-yellow-100 text-yellow-800 border border-yellow-200' : 'bg-gray-100 text-gray-800 border border-gray-200'}">
+                                    <i class="fas fa-flag mr-1"></i>${task.priority || '中'}
+                                </span>
+                            </div>
+
+                            ${task.sub_tasks && task.sub_tasks.length > 0 ? `
+                            <div class="bg-gray-50 p-4 rounded-lg">
+                                <h4 class="font-bold text-gray-700 mb-2"><i class="fas fa-list-check mr-2"></i>AI 建议分解步骤：</h4>
+                                <ul class="list-disc pl-5 text-gray-600 space-y-1">
+                                    ${task.sub_tasks.map(sub => `<li>${sub}</li>`).join('')}
+                                </ul>
+                            </div>` : ''}
+                        </div>
+                        <button onclick="deleteTask(${task.id})" class="ml-4 text-red-400 hover:text-red-600 transition">
+                            <i class="fas fa-trash-alt text-xl"></i>
+                        </button>
+                    </div>
+                    <div class="mt-4 text-right text-sm text-gray-500">
+                        <i class="far fa-calendar mr-1"></i>创建于：${new Date(task.created_at).toLocaleString()}
+                    </div>
+                </div>
+            `).join('');
+
+            container.innerHTML = tasksHtml;
+        }
+
+        // 切换任务完成状态
+        async function toggleTask(taskId) {
+            const response = await fetch(`/api/tasks/${taskId}/toggle`, { method: 'PUT' });
+            if (response.ok) fetchTasks();
+        }
+
+        // 删除任务
+        async function deleteTask(taskId) {
+            if (!confirm('确定要删除这个任务吗？')) return;
+            const response = await fetch(`/api/tasks/${taskId}`, { method: 'DELETE' });
+            if (response.ok) fetchTasks();
+        }
+    </script>
+</body>
+</html>
